@@ -6,6 +6,20 @@ import base64
 
 
 def generate_key(password, salt):
+    """
+    Generates a key from the given password and salt.    
+
+
+    password:
+        The master password - a string.
+
+    salt:
+        A salt that is used for key generation. It
+        must be 16 bytes long.
+
+    Returns a 32-byte key that can be used for
+    encryption and decryption.
+    """
     key = bcrypt.kdf(password=password, salt=salt,
                      desired_key_bytes=32, rounds=100)
     return key
@@ -14,6 +28,7 @@ def generate_key(password, salt):
 def encrypt(key, source, encode=True):
     """Encrypts a file using AES (CBC mode) with the
     given key.
+
 
     key:
         The encryption key - a string that must be
@@ -53,6 +68,19 @@ def decrypt(key, source, decode=True):
     given key. Parameters are similar to encrypt(),
     with one difference: source must be bytes,
     a string that contains base64 encoded data.
+
+
+    key:
+        The encryption key - a string that must be
+        either 16, 24 or 32 bytes long. Longer keys
+        are more secure.
+
+    source:
+        Source string to decrypt.
+
+    decode:
+        If True, the source string is first base64
+        decoded.
 
     Returns the decrypted data as a string.
     """
