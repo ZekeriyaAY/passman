@@ -1,131 +1,74 @@
 import bcrypt
-import os
+import hashlib
 from Crypto.Cipher import AES
+from Crypto.Random import get_random_bytes
 from Crypto.Util.Padding import pad, unpad
-import base64
 
 
-def generate_key(password):
+def generate_key(master_password: str) -> bytes:
     """
-    Generates a key from the given password and salt.    
+    Generate a key from a master password using bcrypt.
 
-
-    password:
-        The master password - a string.
-
-    Returns a 32-byte key that can be used for
-    encryption and decryption.
+    :param master_password: The master password.
+    :return: The key. Length 32 bytes = 256 bits.
     """
-    salt = bcrypt.gensalt()  # 16 bytes = 128 bits
-    key = bcrypt.kdf(password=password, salt=salt,
-                     desired_key_bytes=32, rounds=100)
+    key = bcrypt.kdf(
+        password=hashlib.sha256(master_password.encode()).digest(),
+        salt=hashlib.sha256(master_password[::-1].encode()).digest(),
+        desired_key_bytes=32,
+        rounds=100,
+    )
     return key
 
 
-def encrypt(key, plaintext, encode=True):
-    """Encrypts a file using AES (CBC mode) with the
-    given key.
-
-
-    key:
-        The encryption key - a string that must be
-        either 16, 24 or 32 bytes long. Longer keys
-        are more secure.
-
-    plaintext:
-        Data to encrypt. Must be a bytes-like object
-
-    encode:
-        If True, the return value is base64 encoded.
+def encrypt(key: bytes, plaintext: str) -> bytes:
     """
-    # Pad the data
-    plaintext = pad(plaintext, AES.block_size)
+    Encrypt a plaintext using AES.
 
-    # Generate a random initialization vector
-    iv = os.urandom(16)  # 16 bytes = 128 bits
-
-    # Create cipher
+    :param key: The key. Length 32 bytes = 256 bits.
+    :param plaintext: The plaintext.
+    :return: The ciphertext.
+    """
+    plaintext = pad(plaintext.encode(), AES.block_size)
+    iv = get_random_bytes(AES.block_size)
     cipher = AES.new(key, AES.MODE_CBC, iv)
-
-    # Encrypt the data
     ciphertext = cipher.encrypt(plaintext)
-
-    # Prepend the IV
-    result = iv + ciphertext
-
-    if encode:
-        # Encode as base64
-        result = base64.b64encode(result)
-
-    return result
+    return iv + ciphertext
 
 
-def decrypt(key, ciphertext, decode=True):
-    """Decrypts a file using AES (CBC mode) with the
-    given key. Parameters are similar to encrypt(),
-    with one difference: ciphertext must be bytes,
-    a string that contains base64 encoded data.
-
-
-    key:
-        The encryption key - a string that must be
-        either 16, 24 or 32 bytes long. Longer keys
-        are more secure.
-
-    ciphertext:
-        Encrypted data. Must be a bytes-like object.
-
-    decode:
-        If True, the ciphertext is base64 decoded
-        before decryption.
-
-    Returns the decrypted data as a string.
+def decrypt(key: bytes, ciphertext: bytes) -> str:
     """
-    if decode:
-        # Decode the base64 encoded bytes
-        ciphertext = base64.b64decode(ciphertext)
+    Decrypt a ciphertext using AES.
 
-    # Extract the initialization vector from the beginning
-    iv = ciphertext[:16]
-    ciphertext = ciphertext[16:]
-
-    # Create the cipher
+    :param key: The key. Length 32 bytes = 256 bits.
+    :param ciphertext: The ciphertext.
+    :return: The plaintext.
+    """
+    iv = ciphertext[:AES.block_size]
+    ciphertext = ciphertext[AES.block_size:]
     cipher = AES.new(key, AES.MODE_CBC, iv)
-
-    # Decrypt the data
     plaintext = cipher.decrypt(ciphertext)
-
-    # Remove the padding
-    plaintext = unpad(plaintext, AES.block_size)
-
-    return plaintext
+    plaintext = unpad(plaintext, AES.block_size)    # Encoded plaintext
+    return plaintext.decode()
 
 
 def main():
-    # Get the master password from the user
-    # master_password = input("Enter your master password: ").encode()
-    master_password = "parola1234".encode('utf-8')
-    data = "secret message".encode('utf-8')
-    print("Master password: ", master_password)
-    print("Data: ", data)
+    """
+    Main function.
 
-    # Derive the key
-    encryption_key = generate_key(master_password)
-    print("Key: ", encryption_key)
+    :return: None
+    """
+    # master_password = input("Enter your master password: ")
+    master_password = "parola1234"
+    data = "secret message1234"
 
-    # Encrypt the data
-    ciphertext = encrypt(encryption_key, data)
-    print("Ciphertext: ", ciphertext.decode('utf-8', 'ignore'))
+    key = generate_key(master_password)
+    ciphertext = encrypt(key, data)
+    plaintext = decrypt(key, ciphertext)
 
-    # Decrypt the data
-    plaintext = decrypt(encryption_key, ciphertext)
-    print("Plaintext: ", plaintext)
-
-    # Check if decryption was successful
-    if plaintext == data:
-        print("Decryption was successful.")
-    else:
-        print("Decryption failed.")
+    print(f"Key: {key}")
+    print(f"Ciphertext: {ciphertext}")
+    print(f"Plaintext: {plaintext}")
 
 
 if __name__ == "__main__":
