@@ -5,7 +5,7 @@ from Crypto.Util.Padding import pad, unpad
 import base64
 
 
-def generate_key(password, salt):
+def generate_key(password):
     """
     Generates a key from the given password and salt.    
 
@@ -13,19 +13,16 @@ def generate_key(password, salt):
     password:
         The master password - a string.
 
-    salt:
-        A salt that is used for key generation. It
-        must be 16 bytes long.
-
     Returns a 32-byte key that can be used for
     encryption and decryption.
     """
+    salt = bcrypt.gensalt()  # 16 bytes = 128 bits
     key = bcrypt.kdf(password=password, salt=salt,
                      desired_key_bytes=32, rounds=100)
     return key
 
 
-def encrypt(key, source, encode=True):
+def encrypt(key, plaintext, encode=True):
     """Encrypts a file using AES (CBC mode) with the
     given key.
 
@@ -35,14 +32,14 @@ def encrypt(key, source, encode=True):
         either 16, 24 or 32 bytes long. Longer keys
         are more secure.
 
-    source:
-        Source string to encrypt.
+    plaintext:
+        Data to encrypt. Must be a bytes-like object
 
     encode:
         If True, the return value is base64 encoded.
     """
-    # Pad the source string
-    source = pad(source, AES.block_size)
+    # Pad the data
+    plaintext = pad(plaintext, AES.block_size)
 
     # Generate a random initialization vector
     iv = os.urandom(16)  # 16 bytes = 128 bits
@@ -50,8 +47,8 @@ def encrypt(key, source, encode=True):
     # Create cipher
     cipher = AES.new(key, AES.MODE_CBC, iv)
 
-    # Encrypt the source string
-    ciphertext = cipher.encrypt(source)
+    # Encrypt the data
+    ciphertext = cipher.encrypt(plaintext)
 
     # Prepend the IV
     result = iv + ciphertext
@@ -63,10 +60,10 @@ def encrypt(key, source, encode=True):
     return result
 
 
-def decrypt(key, source, decode=True):
+def decrypt(key, ciphertext, decode=True):
     """Decrypts a file using AES (CBC mode) with the
     given key. Parameters are similar to encrypt(),
-    with one difference: source must be bytes,
+    with one difference: ciphertext must be bytes,
     a string that contains base64 encoded data.
 
 
@@ -75,28 +72,28 @@ def decrypt(key, source, decode=True):
         either 16, 24 or 32 bytes long. Longer keys
         are more secure.
 
-    source:
-        Source string to decrypt.
+    ciphertext:
+        Encrypted data. Must be a bytes-like object.
 
     decode:
-        If True, the source string is first base64
-        decoded.
+        If True, the ciphertext is base64 decoded
+        before decryption.
 
     Returns the decrypted data as a string.
     """
     if decode:
         # Decode the base64 encoded bytes
-        source = base64.b64decode(source)
+        ciphertext = base64.b64decode(ciphertext)
 
     # Extract the initialization vector from the beginning
-    iv = source[:16]
-    source = source[16:]
+    iv = ciphertext[:16]
+    ciphertext = ciphertext[16:]
 
     # Create the cipher
     cipher = AES.new(key, AES.MODE_CBC, iv)
 
     # Decrypt the data
-    plaintext = cipher.decrypt(source)
+    plaintext = cipher.decrypt(ciphertext)
 
     # Remove the padding
     plaintext = unpad(plaintext, AES.block_size)
@@ -113,9 +110,7 @@ def main():
     print("Data: ", data)
 
     # Derive the key
-    salt = bcrypt.gensalt()
-    print("Salt: ", salt)
-    encryption_key = generate_key(master_password, salt)
+    encryption_key = generate_key(master_password)
     print("Key: ", encryption_key)
 
     # Encrypt the data
