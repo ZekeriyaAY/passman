@@ -1,74 +1,23 @@
-import bcrypt
-import hashlib
-from Crypto.Cipher import AES
-from Crypto.Random import get_random_bytes
-from Crypto.Util.Padding import pad, unpad
-
-
-def generate_key(master_password: str) -> bytes:
-    """
-    Generate a key from a master password using bcrypt.
-
-    :param master_password: The master password.
-    :return: The key. Length 32 bytes = 256 bits.
-    """
-    key = bcrypt.kdf(
-        password=hashlib.sha256(master_password.encode()).digest(),
-        salt=hashlib.sha256(master_password[::-1].encode()).digest(),
-        desired_key_bytes=32,
-        rounds=100,
-    )
-    return key
-
-
-def encrypt(key: bytes, plaintext: str) -> bytes:
-    """
-    Encrypt a plaintext using AES.
-
-    :param key: The key. Length 32 bytes = 256 bits.
-    :param plaintext: The plaintext.
-    :return: The ciphertext.
-    """
-    plaintext = pad(plaintext.encode(), AES.block_size)
-    iv = get_random_bytes(AES.block_size)
-    cipher = AES.new(key, AES.MODE_CBC, iv)
-    ciphertext = cipher.encrypt(plaintext)
-    return iv + ciphertext
-
-
-def decrypt(key: bytes, ciphertext: bytes) -> str:
-    """
-    Decrypt a ciphertext using AES.
-
-    :param key: The key. Length 32 bytes = 256 bits.
-    :param ciphertext: The ciphertext.
-    :return: The plaintext.
-    """
-    iv = ciphertext[:AES.block_size]
-    ciphertext = ciphertext[AES.block_size:]
-    cipher = AES.new(key, AES.MODE_CBC, iv)
-    plaintext = cipher.decrypt(ciphertext)
-    plaintext = unpad(plaintext, AES.block_size)    # Encoded plaintext
-    return plaintext.decode()
+from src.core import register, login, logout
+from src.database import new_credential
 
 
 def main():
     """
     Main function.
 
-    :return: None
+    : return: None
     """
     # master_password = input("Enter your master password: ")
-    master_password = "parola1234"
-    data = "secret message1234"
+    master_password = "parola1"
+    data = "secret message 1234"
 
-    key = generate_key(master_password)
-    ciphertext = encrypt(key, data)
-    plaintext = decrypt(key, ciphertext)
+    register(master_password)
+    login(master_password)
+    new_credential(master_password, credentail_name="Google", credential_username="googlezek",
+                   credential_password="google1234", credentail_urls="['https://google.com', 'https://google.com.tr']")
+    # logout(master_password)
 
-    print(f"Key: {key}")
-    print(f"Ciphertext: {ciphertext}")
-    print(f"Plaintext: {plaintext}")
 
 
 if __name__ == "__main__":
